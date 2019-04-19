@@ -7,7 +7,7 @@ import s                                                                        
 
 YellowBox.ignoreWarnings(['Setting a timer', 'Unrecognized WebSocket connection', 'ListView is deprecated and will be removed']);
 
-const url = 'https://ac07cd91.ngrok.io';
+const url = 'https://c5f41159.ngrok.io';
 const socket = io.connect(url, { transports: ["websocket"] });
 const configuration = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
@@ -130,12 +130,36 @@ const createPC = (socketId, isOffer) => {
 socket.on("connect", () => {
   console.log("connect");
 });
-socket.on("leave", socketId => {
-  leave(socketId);
-});
 socket.on("exchange", data => {
   exchange(data);
 });
+socket.on("leave", socketId => {
+  leave(socketId);
+});
+
+const exchange = data => {
+  let fromId = data.from;
+  let peer;
+  if (fromId in pcPeers) {
+    peer = pcPeers[fromId];
+  } else {
+    peer = createPC(fromId, false);
+  }
+  
+  if (data.sdp) {
+    //console.log("exchange sdp", data);
+    let sdp = new RTCSessionDescription(data.sdp);
+    
+    let callback = () => peer.remoteDescription.type === "offer" ? peer.createAnswer(callback2, logError) : null;
+    let callback2 = desc => peer.setLocalDescription(desc, callback3, logError);
+    let callback3 = () => socket.emit("exchange", { to: fromId, sdp: peer.localDescription });
+    
+    peer.setRemoteDescription(sdp, callback, logError);
+  } else {
+    //console.log("exchange candidate", data);
+    peer.addIceCandidate(new RTCIceCandidate(data.candidate));
+  }
+};
 
 const leave = socketId => {
   console.log("leave", socketId);
@@ -156,32 +180,9 @@ const leave = socketId => {
   });
 };
 
-const exchange = data => {
-  const fromId = data.from;
-  let pc;
-  if (fromId in pcPeers) {
-    pc = pcPeers[fromId];
-  } else {
-    pc = createPC(fromId, false);
-  }
-  
-  if (data.sdp) {
-    //console.log("exchange sdp", data);
-    let sdp = new RTCSessionDescription(data.sdp);
-    
-    let callback = () => pc.remoteDescription.type === "offer" ? pc.createAnswer(callback2, logError) : null;
-    let callback2 = desc => pc.setLocalDescription(desc, callback3, logError);
-    let callback3 = () => socket.emit("exchange", { to: fromId, sdp: pc.localDescription });
-    
-    pc.setRemoteDescription(sdp, callback, logError);
-  } else {
-    //console.log("exchange candidate", data);
-    pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-  }
-};
-
 const logError = error => {
   console.log("logError", error);
+  console.trace();
 };
 
 const mapHash = (hash, func) => {
@@ -199,16 +200,11 @@ const getStats = () => {
   const pc = pcPeers[Object.keys(pcPeers)[0]];
   if (pc.getRemoteStreams()[0] && pc.getRemoteStreams()[0].getAudioTracks()[0]) {
     const track = pc.getRemoteStreams()[0].getAudioTracks()[0];
+    let callback = report => console.log("getStats report", report);
     
     //console.log("track", track);
     
-    pc.getStats(
-      track,
-      function (report) {
-        //console.log("getStats report", report);
-      },
-      logError,
-    );
+    pc.getStats(track, callback, logError);
   }
 };
 

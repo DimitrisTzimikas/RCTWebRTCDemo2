@@ -11,7 +11,7 @@ YellowBox.ignoreWarnings(['Setting a timer', 'Unrecognized WebSocket connection'
 /* ==============================
  Global variables
  ================================ */
-const url = 'https://8083948a.ngrok.io';
+const url = 'https://c17ed88c.ngrok.io';
 const socket = io.connect(url, { transports: ['websocket'] });
 const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
@@ -35,7 +35,7 @@ class App extends Component {
   componentDidMount() {
     appClass = this;
     
-    initStream();
+    getLocalStream();
   }
   
   switchCamera = () => {
@@ -84,7 +84,7 @@ class App extends Component {
 /* ==============================
  Functions
  ================================ */
-const initStream = () => {
+const getLocalStream = () => {
   let isFront = true;
   
   let constrains = {
@@ -98,7 +98,7 @@ const initStream = () => {
       facingMode: isFront ? 'user' : 'environment',
     },
   };
-  let callback = stream => {
+  let getStream = stream => {
     localStream = stream;
     
     appClass.setState({
@@ -108,11 +108,11 @@ const initStream = () => {
     });
   };
   
-  getUserMedia(constrains, callback, logError);
+  getUserMedia(constrains, getStream, logError);
 };
 
 const join = roomID => {
-  let callback = socketIds => {
+  let onJoin = socketIds => {
     for (const i in socketIds) {
       if (socketIds.hasOwnProperty(i)) {
         const socketId = socketIds[i];
@@ -121,7 +121,7 @@ const join = roomID => {
     }
   };
   
-  socket.emit('join', roomID, callback);
+  socket.emit('join', roomID, onJoin);
 };
 
 const createPC = (socketId, isOffer) => {
@@ -129,6 +129,8 @@ const createPC = (socketId, isOffer) => {
    * Create the Peer Connection
    */
   const peer = new RTCPeerConnection(configuration);
+  
+  log('Peer', peer);
   
   pcPeers = {
     ...pcPeers,
@@ -231,7 +233,9 @@ socket.on('leave', socketId => {
 const exchange = data => {
   let fromId = data.from;
   
-  if (data.sdp) log('Exchange', data);
+  if (data.sdp) {
+    log('Exchange', data);
+  }
   
   let peer;
   if (fromId in pcPeers) {

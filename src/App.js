@@ -11,7 +11,7 @@ YellowBox.ignoreWarnings(['Setting a timer', 'Unrecognized WebSocket connection'
 /* ==============================
  Global variables
  ================================ */
-const url = 'https://c17ed88c.ngrok.io';
+const url = 'https://42471ad5.ngrok.io';
 const socket = io.connect(url, { transports: ['websocket'] });
 const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 

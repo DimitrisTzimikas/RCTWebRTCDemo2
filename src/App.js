@@ -22,17 +22,8 @@ YellowBox.ignoreWarnings([
  ================================ */
 const url = 'https://7e53e659f187.ngrok.io/';
 const socket = io.connect(url, { transports: ['websocket'] });
-// const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 const configuration = {
-  iceServers:
-    [
-      {
-        'urls': 'turn:numb.viagenie.ca',
-        'credential': '6975787089aA',
-        'username': 'tzimikasd@gmail.com',
-      },
-      { 'urls': 'stun:stun.1.google.com:19302' },
-    ],
+  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
 };
 
 let pcPeers = {};

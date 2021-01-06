@@ -1,19 +1,39 @@
-import React, { Component }                                                                 from 'react';
-import { Text, TouchableOpacity, View, YellowBox }                                          from 'react-native';
-import { getUserMedia, RTCIceCandidate, RTCPeerConnection, RTCSessionDescription, RTCView } from 'react-native-webrtc';
-import io                                                                                   from 'socket.io-client';
-import { button, container, rtcView, text }                                                 from './styles';
-import { log, logError }                                                                    from './debug';
+import React, { Component } from 'react';
+import { Text, TouchableOpacity, View, YellowBox } from 'react-native';
+import {
+  getUserMedia,
+  RTCIceCandidate,
+  RTCPeerConnection,
+  RTCSessionDescription,
+  RTCView,
+} from 'react-native-webrtc';
+import io from 'socket.io-client';
+import { button, container, rtcView, text } from './styles';
+import { log, logError } from './debug';
 
-
-YellowBox.ignoreWarnings(['Setting a timer', 'Unrecognized WebSocket connection', 'ListView is deprecated and will be removed']);
+YellowBox.ignoreWarnings([
+  'Setting a timer',
+  'Unrecognized WebSocket connection',
+  'ListView is deprecated and will be removed',
+]);
 
 /* ==============================
  Global variables
  ================================ */
-const url = 'https://a5e16519.ngrok.io';
+const url = 'https://7e53e659f187.ngrok.io/';
 const socket = io.connect(url, { transports: ['websocket'] });
-const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+// const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+const configuration = {
+  iceServers:
+    [
+      {
+        'urls': 'turn:numb.viagenie.ca',
+        'credential': '6975787089aA',
+        'username': 'tzimikasd@gmail.com',
+      },
+      { 'urls': 'stun:stun.1.google.com:19302' },
+    ],
+};
 
 let pcPeers = {};
 let appClass;
@@ -31,51 +51,51 @@ class App extends Component {
     streamURL: null,
     remoteList: {},
   };
-  
+
   componentDidMount() {
     appClass = this;
-    
+
     getLocalStream();
   }
-  
+
   switchCamera = () => {
     localStream.getVideoTracks().forEach(track => {
       track._switchCamera();
     });
   };
-  
+
   onPress = () => {
     this.setState({
       status: 'connect',
       info: 'Connecting',
     });
-    
+
     join(this.state.roomID);
   };
-  
+
   button = (func, text) => (
     <TouchableOpacity style={button.container} onPress={func}>
       <Text style={button.style}>{text}</Text>
     </TouchableOpacity>
   );
-  
+
   render() {
     const { status, info, streamURL, remoteList } = this.state;
-    
+
     return (
       <View style={container.style}>
         <Text style={text.style}>{info}</Text>
-        
+
         {status === 'ready' ? this.button(this.onPress, 'Enter room') : null}
         {this.button(this.switchCamera, 'Change Camera')}
-        
-        <RTCView streamURL={streamURL} style={rtcView.style}/>
-        
-        {
-          mapHash(remoteList, (remote, index) => {
-            return <RTCView key={index} streamURL={remote} style={rtcView.style}/>;
-          })
-        }
+
+        <RTCView streamURL={streamURL} style={rtcView.style} />
+
+        {mapHash(remoteList, (remote, index) => {
+          return (
+            <RTCView key={index} streamURL={remote} style={rtcView.style} />
+          );
+        })}
       </View>
     );
   }
@@ -86,7 +106,7 @@ class App extends Component {
  ================================ */
 const getLocalStream = () => {
   let isFront = true;
-  
+
   let constrains = {
     audio: false,
     video: {
@@ -100,14 +120,14 @@ const getLocalStream = () => {
   };
   let getStream = stream => {
     localStream = stream;
-    
+
     appClass.setState({
       streamURL: stream.toURL(),
       status: 'ready',
       info: 'Welcome to WebRTC demo',
     });
   };
-  
+
   getUserMedia(constrains, getStream, logError);
 };
 
@@ -120,7 +140,7 @@ const join = roomID => {
       }
     }
   };
-  
+
   socket.emit('join', roomID, onJoin);
 };
 
@@ -129,14 +149,14 @@ const createPC = (socketId, isOffer) => {
    * Create the Peer Connection
    */
   const peer = new RTCPeerConnection(configuration);
-  
+
   log('Peer', peer);
-  
+
   pcPeers = {
     ...pcPeers,
     [socketId]: peer,
   };
-  
+
   /**
    * On Negotiation Needed
    */
@@ -144,39 +164,38 @@ const createPC = (socketId, isOffer) => {
     //console.log('onnegotiationneeded');
     if (isOffer) {
       let callback = desc => {
-        
         log('The SDP offer', desc.sdp);
-        
+
         peer.setLocalDescription(desc, callback2, logError);
       };
       let callback2 = () => {
         //console.log('setLocalDescription', peer.localDescription);
         socket.emit('exchange', { to: socketId, sdp: peer.localDescription });
       };
-      
+
       peer.createOffer(callback, logError);
     }
   };
-  
+
   /**
    * (Deprecated)
    */
   peer.addStream(localStream);
-  
+
   /**
    * On Add Stream (Deprecated)
    */
   peer.onaddstream = event => {
     //console.log('onaddstream', event.stream);
     const remoteList = appClass.state.remoteList;
-    
+
     remoteList[socketId] = event.stream.toURL();
     appClass.setState({
       info: 'One peer join!',
       remoteList: remoteList,
     });
   };
-  
+
   /**
    * On Ice Candidate
    */
@@ -186,7 +205,7 @@ const createPC = (socketId, isOffer) => {
       socket.emit('exchange', { to: socketId, candidate: event.candidate });
     }
   };
-  
+
   /**
    * On Ice Connection State Change
    */
@@ -202,21 +221,21 @@ const createPC = (socketId, isOffer) => {
       //console.log('event.target.iceConnectionState === 'connected'');
     }
   };
-  
+
   /**
    * On Signaling State Change
    */
   peer.onsignalingstatechange = event => {
     //console.log('on signaling state change', event.target.signalingState);
   };
-  
+
   /**
    * On Remove Stream
    */
   peer.onremovestream = event => {
     //console.log('on remove stream', event.stream);
   };
-  
+
   return peer;
 };
 
@@ -232,26 +251,30 @@ socket.on('leave', socketId => {
 
 const exchange = data => {
   let fromId = data.from;
-  
+
   if (data.sdp) {
     log('Exchange', data);
   }
-  
+
   let peer;
   if (fromId in pcPeers) {
     peer = pcPeers[fromId];
   } else {
     peer = createPC(fromId, false);
   }
-  
+
   if (data.sdp) {
     //console.log('exchange sdp', data);
     let sdp = new RTCSessionDescription(data.sdp);
-    
-    let callback = () => peer.remoteDescription.type === 'offer' ? peer.createAnswer(callback2, logError) : null;
+
+    let callback = () =>
+      peer.remoteDescription.type === 'offer'
+        ? peer.createAnswer(callback2, logError)
+        : null;
     let callback2 = desc => peer.setLocalDescription(desc, callback3, logError);
-    let callback3 = () => socket.emit('exchange', { to: fromId, sdp: peer.localDescription });
-    
+    let callback3 = () =>
+      socket.emit('exchange', { to: fromId, sdp: peer.localDescription });
+
     peer.setRemoteDescription(sdp, callback, logError);
   } else {
     peer.addIceCandidate(new RTCIceCandidate(data.candidate));
@@ -260,17 +283,17 @@ const exchange = data => {
 
 const leave = socketId => {
   //console.log('leave', socketId);
-  
+
   const peer = pcPeers[socketId];
-  
+
   peer.close();
-  
+
   delete pcPeers[socketId];
-  
+
   const remoteList = appClass.state.remoteList;
-  
+
   delete remoteList[socketId];
-  
+
   appClass.setState({
     info: 'One peer left!',
     remoteList: remoteList,
@@ -291,12 +314,15 @@ const mapHash = (hash, func) => {
 
 const getStats = () => {
   const pc = pcPeers[Object.keys(pcPeers)[0]];
-  if (pc.getRemoteStreams()[0] && pc.getRemoteStreams()[0].getAudioTracks()[0]) {
+  if (
+    pc.getRemoteStreams()[0] &&
+    pc.getRemoteStreams()[0].getAudioTracks()[0]
+  ) {
     const track = pc.getRemoteStreams()[0].getAudioTracks()[0];
     let callback = report => console.log('getStats report', report);
-    
+
     //console.log('track', track);
-    
+
     pc.getStats(track, callback, logError);
   }
 };

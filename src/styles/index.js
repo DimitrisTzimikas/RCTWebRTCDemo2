@@ -1,4 +1,4 @@
-export button    from './button';
-export container from './container';
-export rtcView   from './rtcView';
-export text      from './text';
+export { default as button } from './button';
+export { default as container } from './container';
+export { default as rtcView } from './rtcView';
+export { default as text } from './text';
